@@ -30,15 +30,23 @@ func NewPageData(title string, body template.HTML) *pageData {
 
 type Server struct {
 	filepath string
+	mux      *http.ServeMux
 }
 
 func NewServer(filepath string) *Server {
-	return &Server{
+	s := &Server{
 		filepath: filepath,
+		mux:      http.NewServeMux(),
 	}
+	s.mux.HandleFunc("/", s.handleIndex)
+	return s
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mux.ServeHTTP(w, r)
+}
+
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	rawBytes, err := os.ReadFile(s.filepath)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
