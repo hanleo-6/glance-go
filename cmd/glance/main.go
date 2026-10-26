@@ -33,7 +33,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	server := server.NewServer(absPath)
+	server := server.New(absPath)
 	fmt.Println("Listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", server); err != nil {
 		fmt.Fprintln(os.Stderr, err)
