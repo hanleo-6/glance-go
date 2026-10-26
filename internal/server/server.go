@@ -3,29 +3,24 @@ package server
 // HTTP server
 
 import (
-	"github.com/hanleo-6/glance-go/internal/translate"
-
 	_ "embed"
-
-	"path/filepath"
 	"html/template"
 	"net/http"
 	"os"
+	"path/filepath"
+
+	"github.com/hanleo-6/glance-go/internal/translate"
 )
 
 //go:embed template.html
 var templateHTML string
 
+
+var pageTmpl = template.Must(template.New("page").Parse(templateHTML))
+
 type pageData struct {
 	Title string
 	Body  template.HTML
-}
-
-func NewPageData(title string, body template.HTML) *pageData {
-	return &pageData{
-		Title: title,
-		Body: body,
-	}
 }
 
 type Server struct {
@@ -33,7 +28,7 @@ type Server struct {
 	mux      *http.ServeMux
 }
 
-func NewServer(filepath string) *Server {
+func New(filepath string) *Server {
 	s := &Server{
 		filepath: filepath,
 		mux:      http.NewServeMux(),
@@ -59,9 +54,11 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := NewPageData(filepath.Base(s.filepath), template.HTML(parsedHTML))
+	data := pageData{
+		Title:  filepath.Base(s.filepath),
+		Body:  template.HTML(parsedHTML),
+	}
 
-	pageTmpl, err := template.New("page").Parse(templateHTML)
 	err = pageTmpl.Execute(w, data)
 }
 
