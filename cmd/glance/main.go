@@ -2,9 +2,11 @@ package main
 
 import (
 	"github.com/hanleo-6/glance-go/internal/server"
+	"github.com/hanleo-6/glance-go/internal/watch"
 
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -30,6 +32,14 @@ func main() {
 	_, err = os.Stat(absPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+
+	err = watch.File(absPath, func() {
+		log.Println("File changed, [reload tab code would run now]")
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
