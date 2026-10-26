@@ -4,6 +4,7 @@ package server
 
 import (
 	_ "embed"
+	"fmt"
 	"html/template"
 	"net/http"
 	"os"
@@ -25,15 +26,18 @@ type pageData struct {
 
 type Server struct {
 	filepath string
+	reloadCh chan struct{}
 	mux      *http.ServeMux
 }
 
-func New(filepath string) *Server {
+func New(filepath string, reloadCh chan struct{}) *Server {
 	s := &Server{
 		filepath: filepath,
+		reloadCh: reloadCh,
 		mux:      http.NewServeMux(),
 	}
 	s.mux.HandleFunc("/", s.handleIndex)
+	s.mux.HandleFunc("/events", s.handleEvents)
 	return s
 }
 
@@ -60,5 +64,28 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = pageTmpl.Execute(w, data)
+}
+
+func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/event-stream")
+    w.Header().Set("Cache-Control", "no-cache")
+    w.Header().Set("Connection", "keep-alive")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+	for {
+		select {
+		case <-r.Context().Done():
+			// Client closed the tab
+			return
+		case <-s.reloadCh:
+			// File watcher notification
+			fmt.Println("notified")
+			fmt.Fprintf(w, "data: reload\n\n")
+			flusher.Flush()
+		}
+	}
 }
 

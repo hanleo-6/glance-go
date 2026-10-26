@@ -20,5 +20,13 @@
   <article class="markdown-body">
     {{.Body}}
   </article>
+<script>
+  const events = new EventSource("/events");
+  events.onmessage = (event) => {
+    if (event.data === "reload") {
+      location.reload();
+    }
+  };
+</script>
 </body>
 </html>

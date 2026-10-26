@@ -6,7 +6,6 @@ import (
 
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,20 +34,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	reloadCh := make(chan struct{})
 	err = watch.File(absPath, func() {
-		log.Println("File changed, [reload tab code would run now]")
+		select {
+		case reloadCh <- struct{}{}:
+			// send signal to tab
+		default:
+			// no tab listening (or busy), so discard signal
+		}
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	server := server.New(absPath)
+	srv := server.New(absPath, reloadCh)
 	fmt.Println("Listening on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", server); err != nil {
+	if err := http.ListenAndServe(":8080", srv); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
-
 
