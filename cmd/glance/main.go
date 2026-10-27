@@ -34,21 +34,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	reloadCh := make(chan struct{})
+	srv := server.New(absPath)
+	// initialise watcher
 	err = watch.File(absPath, func() {
-		select {
-		case reloadCh <- struct{}{}:
-			// send signal to tab
-		default:
-			// no tab listening (or busy), so discard signal
-		}
+		srv.Reload()
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	srv := server.New(absPath, reloadCh)
+	// start server on localhost
 	fmt.Println("Listening on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", srv); err != nil {
 		fmt.Fprintln(os.Stderr, err)

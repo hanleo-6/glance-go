@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/hanleo-6/glance-go/internal/translate"
+	"github.com/hanleo-6/glance-go/internal/hub"
 )
 
 //go:embed template.html
@@ -26,15 +27,15 @@ type pageData struct {
 
 type Server struct {
 	filepath string
-	reloadCh chan struct{}
 	mux      *http.ServeMux
+	hub      *hub.Hub
 }
 
-func New(filepath string, reloadCh chan struct{}) *Server {
+func New(filepath string) *Server {
 	s := &Server{
-		filepath: filepath,
-		reloadCh: reloadCh,
+ 		filepath: filepath,
 		mux:      http.NewServeMux(),
+		hub:      hub.New(),
 	}
 	s.mux.HandleFunc("/", s.handleIndex)
 	s.mux.HandleFunc("/events", s.handleEvents)
@@ -67,25 +68,37 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	// set headers
 	w.Header().Set("Content-Type", "text/event-stream")
     w.Header().Set("Cache-Control", "no-cache")
     w.Header().Set("Connection", "keep-alive")
+
+	// initialise flusher
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
+	// subscribe to the hub
+	ch := s.hub.Subscribe()
+	defer s.hub.Unsubscribe(ch)
+
+	// listen for reloads
 	for {
 		select {
 		case <-r.Context().Done():
 			// Client closed the tab
 			return
-		case <-s.reloadCh:
+		case <-ch:
 			// File watcher notification
 			fmt.Println("notified")
 			fmt.Fprintf(w, "data: reload\n\n")
 			flusher.Flush()
 		}
 	}
+}
+
+func (s *Server) Reload() {
+	s.hub.Publish()
 }
 

@@ -48,3 +48,4 @@ func File(targetFile string, onChange func()) error {
 
 	return nil
 }
+
