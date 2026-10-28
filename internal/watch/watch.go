@@ -3,6 +3,7 @@ package watch
 import (
 	"log"
 	"path/filepath"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -19,6 +20,9 @@ func File(targetFile string, onChange func()) error {
 		return err
 	}
 
+	var timer *time.Timer
+	debounceDuration := 50 * time.Millisecond
+
 	go func() {
 		defer watcher.Close()
 		for {
@@ -27,15 +31,21 @@ func File(targetFile string, onChange func()) error {
 				if !ok {
 					return
 				}
-				// check if this is event for targetfile
-				// distinguish between write, create and rename
-				// if both, log event and call onChange
 				if filepath.Clean(event.Name) == filepath.Clean(targetFile) &&
-			      (event.Has(fsnotify.Write) ||
-				   event.Has(fsnotify.Create) ||
-				   event.Has(fsnotify.Rename)) {
+					(event.Has(fsnotify.Write) ||
+						event.Has(fsnotify.Create) ||
+						event.Has(fsnotify.Rename)) {
+
 					log.Println("event:", event.Op)
-					onChange()
+
+					// trigger the change after debouncing
+					if timer != nil {
+						timer.Stop()
+					}
+					timer = time.AfterFunc(debounceDuration, func() {
+						log.Println("changed!")
+						onChange()
+					})
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
@@ -48,4 +58,3 @@ func File(targetFile string, onChange func()) error {
 
 	return nil
 }
-
